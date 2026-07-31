@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/icon.png" style="width: 256px; height: 256px" alt="GugleAI icon">
+<img src=".idea/icon.png" width="256" height="256" alt="Icon" />
 
 # GugleAI
 
