@@ -661,6 +661,16 @@
   grid-column: 1 / -1;
 }
 
+.provider-editor-fields label {
+  min-width: 0;
+}
+
+.provider-field-help {
+  color: var(--color-text-4);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .provider-editor-fields .arco-input-wrapper,
 .provider-editor-fields .arco-input-password {
   width: 100%;

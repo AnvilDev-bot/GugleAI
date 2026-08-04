@@ -84,6 +84,7 @@ export function useAppSettings(options: AppSettingsOptions) {
               : createConnectionId(),
           name: providerNameFromEndpoint(savedEndpoint, 1),
           endpoint: savedEndpoint,
+          imageEndpoint: "",
           apiKey: savedApiKey,
           models: normalizeProviderModels(fallbackModels),
         });

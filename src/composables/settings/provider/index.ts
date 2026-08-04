@@ -34,6 +34,7 @@ export function useProviderSettings(options: ProviderSettingsOptions) {
     id: DEFAULT_CONNECTION_ID,
     name: "OpenAI",
     endpoint: DEFAULT_ENDPOINT,
+    imageEndpoint: "",
     apiKey: "",
     models: defaultProviderModels(),
   }]);
@@ -42,6 +43,7 @@ export function useProviderSettings(options: ProviderSettingsOptions) {
   const connectionDraftId = ref("");
   const connectionDraftName = ref("");
   const connectionDraftEndpoint = ref("");
+  const connectionDraftImageEndpoint = ref("");
   const connectionDraftApiKey = ref("");
   const connectionDraftError = ref("");
   const providerDraftIsNew = ref(false);
@@ -85,6 +87,7 @@ export function useProviderSettings(options: ProviderSettingsOptions) {
         id: connectionDraftId.value,
         name: connectionDraftName.value.trim() || "新提供商",
         endpoint: connectionDraftEndpoint.value.trim(),
+        imageEndpoint: connectionDraftImageEndpoint.value.trim(),
         apiKey: connectionDraftApiKey.value,
         models: [],
       }];
@@ -94,6 +97,7 @@ export function useProviderSettings(options: ProviderSettingsOptions) {
           ...provider,
           name: connectionDraftName.value.trim() || "未命名提供商",
           endpoint: connectionDraftEndpoint.value,
+          imageEndpoint: connectionDraftImageEndpoint.value,
           apiKey: connectionDraftApiKey.value,
         }
         : provider);
@@ -108,6 +112,7 @@ export function useProviderSettings(options: ProviderSettingsOptions) {
     return Boolean(provider && (
       connectionDraftName.value !== provider.name ||
       connectionDraftEndpoint.value !== provider.endpoint ||
+      connectionDraftImageEndpoint.value !== provider.imageEndpoint ||
       connectionDraftApiKey.value !== provider.apiKey
     ));
   });
@@ -154,6 +159,7 @@ export function useProviderSettings(options: ProviderSettingsOptions) {
     connectionDraftId.value = profile.id;
     connectionDraftName.value = profile.name;
     connectionDraftEndpoint.value = profile.endpoint;
+    connectionDraftImageEndpoint.value = profile.imageEndpoint;
     connectionDraftApiKey.value = profile.apiKey;
     connectionDraftError.value = "";
     providerDraftIsNew.value = false;
@@ -243,6 +249,7 @@ export function useProviderSettings(options: ProviderSettingsOptions) {
       id: createConnectionId(),
       name: nameValue.trim() || providerNameFromEndpoint(profileEndpoint, connectionProfiles.value.length + 1),
       endpoint: profileEndpoint,
+      imageEndpoint: "",
       apiKey: profileApiKey,
       models: normalizeProviderModels(modelsValue),
     };
@@ -261,6 +268,7 @@ export function useProviderSettings(options: ProviderSettingsOptions) {
     connectionDraftId.value = createConnectionId();
     connectionDraftName.value = "";
     connectionDraftEndpoint.value = "";
+    connectionDraftImageEndpoint.value = "";
     connectionDraftApiKey.value = "";
     connectionDraftError.value = "";
     providerDraftIsNew.value = true;
@@ -283,6 +291,7 @@ export function useProviderSettings(options: ProviderSettingsOptions) {
         id: connectionDraftId.value,
         name: connectionDraftName.value.trim(),
         endpoint: profileEndpoint,
+        imageEndpoint: connectionDraftImageEndpoint.value.trim(),
         apiKey: profileApiKey,
         models: [],
       };
@@ -296,6 +305,7 @@ export function useProviderSettings(options: ProviderSettingsOptions) {
         ...current,
         name: connectionDraftName.value.trim(),
         endpoint: profileEndpoint,
+        imageEndpoint: connectionDraftImageEndpoint.value.trim(),
         apiKey: profileApiKey,
       };
       connectionProfiles.value = connectionProfiles.value.map(
@@ -436,7 +446,7 @@ export function useProviderSettings(options: ProviderSettingsOptions) {
 
   return {
     endpoint, apiKey, connectionProfiles, activeConnectionId, selectedProviderId,
-    connectionDraftId, connectionDraftName, connectionDraftEndpoint,
+    connectionDraftId, connectionDraftName, connectionDraftEndpoint, connectionDraftImageEndpoint,
     connectionDraftApiKey, connectionDraftError, providerDraftIsNew, providerDraftPreviousId,
     unsavedChangesModalOpen, modelModalOpen, modelDraftProviderId, modelDraftOriginalId,
     modelDraftId, modelDraftDisplayName, modelDraftDescription, modelDraftIsImage,

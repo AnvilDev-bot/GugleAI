@@ -35,6 +35,7 @@ export interface ConnectionProfile {
   id: string;
   name: string;
   endpoint: string;
+  imageEndpoint: string;
   apiKey: string;
   models: ProviderModel[];
 }
@@ -138,6 +139,7 @@ export function normalizeConnectionProfiles(
           ? record.name.trim()
           : providerNameFromEndpoint(endpoint, profiles.length + 1),
       endpoint,
+      imageEndpoint: typeof record.imageEndpoint === "string" ? record.imageEndpoint.trim() : "",
       apiKey,
       models: normalizeProviderModels(record.models, fallbackModels),
     });

@@ -374,13 +374,14 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
     });
   }
 
-  function connectionForCanvasNode(node: CanvasNode): OpenAIConnection {
+  function connectionForCanvasNode(node: CanvasNode, imageGeneration = false): OpenAIConnection {
     const profile = options.connectionProfiles.value.find((item) => item.id === node.data.connectionId);
     if (!profile) throw new Error("节点选择的 API 连接不存在，请重新选择");
     if (!profile.models.some((item) => item.id === node.data.model)) {
       throw new Error("节点选择的模型不存在，请重新选择");
     }
-    return new OpenAIConnection(profile.endpoint, profile.apiKey);
+    const endpoint = imageGeneration ? profile.imageEndpoint || profile.endpoint : profile.endpoint;
+    return new OpenAIConnection(endpoint, profile.apiKey);
   }
 
   function updateCanvasNodeData(id: string, patch: Partial<CanvasNodeData>) {
@@ -525,7 +526,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
       signal: AbortSignal,
       taskId: number
   ): Promise<Blob[]> {
-    const connection = connectionForCanvasNode(node);
+    const connection = connectionForCanvasNode(node, true);
     const base = connection.baseUrl;
     const requestSize = resolveCanvasNodeSize(node.data);
     const useChat = options.generationSettings.apiMode.value === "chat"

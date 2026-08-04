@@ -145,7 +145,10 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
     loading.value = true;
     stopping.value = false;
     error.value = "";
-    const connection = new OpenAIConnection(selectedModel.provider.endpoint, selectedModel.provider.apiKey);
+    const connection = new OpenAIConnection(
+        selectedModel.provider.imageEndpoint || selectedModel.provider.endpoint,
+        selectedModel.provider.apiKey
+    );
     try {
       const retryConfig = options.generationSettings.retryConfig();
       const useChat = options.generationSettings.apiMode.value === "chat"

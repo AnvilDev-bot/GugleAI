@@ -35,8 +35,9 @@ image and chat APIs, including compatible third-party relay services.
 
 ### Providers, models, and settings
 
-- Maintain multiple providers in Model Settings. Each provider has its own name, API endpoint, API key, and model list;
-  leaving an unsaved provider prompts you to save, discard, or keep editing.
+- Maintain multiple providers in Model Settings. Each provider has its own name, API endpoint, optional image endpoint,
+  API key, and model list. The image endpoint falls back to the API endpoint when left blank; leaving an unsaved provider
+  prompts you to save, discard, or keep editing.
 - Models support an ID, display name, description, image-model flag, and context length. Image Generation, Chat,
   conversation titles, and Canvas nodes select models grouped by provider.
 - Press `Ctrl+V` in Image Generation to import a connection directly from newapi channel JSON
@@ -91,6 +92,9 @@ image and chat APIs, including compatible third-party relay services.
 
 - If a provider endpoint has no version path, the app appends `/v1`; existing paths such as `/v1` and `/v2`, including
   third-party relay paths, are preserved.
+- A provider can use a separate image endpoint. Image Generation and Canvas image nodes send Images, Edits, and image
+  generation requests made through Chat mode, plus relative result downloads, to that endpoint; a blank value falls back
+  to the provider API endpoint. Text Chat and conversation titles continue to use the provider API endpoint.
 - Images mode without references calls `/images/generations`.
 - Images mode with references calls `/images/edits`.
 - Chat mode calls `/chat/completions` and extracts results from text, image URLs, or embedded base64 data.

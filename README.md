@@ -30,7 +30,7 @@ GugleAI 是一个基于 Tauri 2、Vue 3 和 TypeScript 的桌面与 Android AI �
 
 ### 提供商、模型和设置
 
-- 在模型设置中维护多个提供商，每个提供商拥有独立的名称、API 地址、API Key 和模型列表；切换未保存的提供商信息时会提示保存、放弃或继续编辑。
+- 在模型设置中维护多个提供商，每个提供商拥有独立的名称、API 地址、可选的生图端点、API Key 和模型列表；生图端点留空时使用 API 地址。切换未保存的提供商信息时会提示保存、放弃或继续编辑。
 - 模型支持 ID、显示名称、介绍、生图模型标记和上下文长度。图像生成、聊天、对话标题和画布节点均按提供商分组选择模型。
 - 在图像生成页面按 `Ctrl+V` 可以直接导入连接配置，支持 newapi 渠道 JSON（`_type: "newapi_channel_conn"`）和 Codex CLI
   `config.toml` 中的 `base_url`。
@@ -67,6 +67,7 @@ GugleAI 是一个基于 Tauri 2、Vue 3 和 TypeScript 的桌面与 Android AI �
 ## API 兼容性
 
 - 提供商地址没有版本路径时，应用自动补充 `/v1`；已有 `/v1`、`/v2` 等版本路径以及第三方中转路径会保留。
+- 渠道可以为生图单独设置端点；生图工作区和画布图像节点的 Images、Edits、Chat 生图请求及相对图片下载使用该端点，留空时回退到渠道 API 地址。文字聊天和对话标题仍使用渠道 API 地址。
 - 无参考图的 Images 模式调用 `/images/generations`。
 - 带参考图的 Images 模式调用 `/images/edits`。
 - Chat 模式调用 `/chat/completions`，并从文本、图片 URL 或内嵌 base64 中解析结果。

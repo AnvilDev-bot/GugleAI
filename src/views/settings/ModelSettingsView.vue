@@ -104,6 +104,17 @@ function addProvider() {
                   @input="app.connectionDraftError = ''"
               />
             </label>
+            <label for="provider-image-endpoint-input">
+              生图端点（可选）
+              <a-input
+                  id="provider-image-endpoint-input"
+                  v-model="app.connectionDraftImageEndpoint"
+                  autocomplete="off"
+                  placeholder="留空使用 API 地址"
+                  @input="app.connectionDraftError = ''"
+              />
+              <small class="provider-field-help">仅用于生图请求和结果下载</small>
+            </label>
             <label for="provider-api-key-input">
               API Key（可选）
               <a-input-password
