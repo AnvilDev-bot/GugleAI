@@ -1,4 +1,4 @@
-import {strFromU8, strToU8, unzipSync, zipSync} from "fflate";
+import {strFromU8, strToU8, unzip, zip} from "fflate";
 import type {
   CanvasImageAssetSnapshot,
   CanvasNodeSnapshot,
@@ -90,11 +90,11 @@ export async function createBackupArchive(): Promise<Blob> {
     canvasCount: canvases.length,
   };
   files["manifest.json"] = strToU8(JSON.stringify(manifest));
-  return new Blob([zipSync(files, {level: 6})], {type: "application/zip"});
+  return new Blob([await zipArchive(files)], {type: "application/zip"});
 }
 
 export async function readBackupArchive(blob: Blob): Promise<BackupContents> {
-  const archive = unzipSync(new Uint8Array(await blob.arrayBuffer()));
+  const archive = await unzipArchive(new Uint8Array(await blob.arrayBuffer()));
   const manifest = readJson<BackupManifest>(archive, "manifest.json");
   if (
     manifest.app !== "gugle-ai"
@@ -326,6 +326,30 @@ function validateBackupContents(contents: BackupContents): void {
       throw new Error("备份中的画布数据无效");
     }
   }
+}
+
+function zipArchive(files: Record<string, Uint8Array>): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    zip(files, {level: 6}, (error, data) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(data);
+    });
+  });
+}
+
+function unzipArchive(data: Uint8Array): Promise<Record<string, Uint8Array>> {
+  return new Promise((resolve, reject) => {
+    unzip(data, (error, archive) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(archive);
+    });
+  });
 }
 
 function formatBackupTimestamp(timestamp: number): string {
