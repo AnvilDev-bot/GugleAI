@@ -44,6 +44,7 @@ export function useBackup(options: BackupOptions) {
   const webdavTesting = ref(false);
   const webdavTestStatus = ref<"idle" | "success" | "error">("idle");
   let autoBackupTimer: number | null = null;
+  let startupCheckTimer: number | null = null;
 
   restoreSettings();
   watch(
@@ -393,13 +394,17 @@ export function useBackup(options: BackupOptions) {
 
   onMounted(() => {
     void refreshBackups();
-    void checkAutomaticBackup();
-    void checkWebdavAutomaticBackup();
+    // 自动备份检查可能触发全量打包上传,延迟到首屏渲染稳定后再执行
+    startupCheckTimer = window.setTimeout(() => {
+      startupCheckTimer = null;
+      void checkAutomaticBackup().then(checkWebdavAutomaticBackup);
+    }, 3000);
     autoBackupTimer = window.setInterval(() => {
       void checkAutomaticBackup().then(checkWebdavAutomaticBackup);
     }, 60 * 1000);
   });
   onUnmounted(() => {
+    if (startupCheckTimer !== null) window.clearTimeout(startupCheckTimer);
     if (autoBackupTimer !== null) window.clearInterval(autoBackupTimer);
   });
 

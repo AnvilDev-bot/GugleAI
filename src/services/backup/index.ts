@@ -1,7 +1,6 @@
-import {strFromU8, strToU8, unzip, zip} from "fflate";
+import {strFromU8, unzip} from "fflate";
 import type {
   CanvasImageAssetSnapshot,
-  CanvasNodeSnapshot,
   CanvasSnapshot,
 } from "../../canvas";
 import type {StoredResultImage} from "../../domain/models";
@@ -14,11 +13,16 @@ import {
   replaceAllCanvasDocuments,
   type StoredCanvasDocument,
 } from "../canvas-storage";
+import {
+  BACKUP_FORMAT_VERSION,
+  type ArchiveCreateRequest,
+  type ArchiveCreateResponse,
+  type BackupManifest,
+} from "./archive-format";
 
 const BACKUP_DB_NAME = "gugle-ai-backups";
 const BACKUP_STORE_NAME = "archives";
 const BACKUP_DB_VERSION = 1;
-const BACKUP_FORMAT_VERSION = 1;
 
 export type BackupKind = "manual" | "automatic";
 
@@ -44,53 +48,38 @@ export interface BackupContents {
   canvases: StoredCanvasDocument[];
 }
 
-interface BackupManifest {
-  app: "gugle-ai";
-  formatVersion: 1;
-  createdAt: number;
-  resultImageCount: number;
-  canvasCount: number;
-}
-
 let databasePromise: Promise<IDBDatabase> | null = null;
 
 export async function createBackupArchive(): Promise<Blob> {
-  const resultImages = await loadStoredResultImages();
-  const canvases = await loadAllCanvasDocuments();
-  const files: Record<string, Uint8Array> = {
-    "local-storage.json": strToU8(JSON.stringify(readLocalStorage())),
-  };
-  const imageIndex: Array<Omit<StoredResultImage, "blob"> & {blobPath: string}> = [];
-  for (const image of resultImages) {
-    const blobPath = `history/${encodeURIComponent(image.id)}.bin`;
-    files[blobPath] = new Uint8Array(await image.blob.arrayBuffer());
-    imageIndex.push({
-      id: image.id,
-      mime: image.mime,
-      prompt: image.prompt,
-      createdAt: image.createdAt,
-      blobPath,
-    });
-  }
-  files["history/index.json"] = strToU8(JSON.stringify(imageIndex));
+  const [resultImages, canvases] = await Promise.all([
+    loadStoredResultImages(),
+    loadAllCanvasDocuments(),
+  ]);
+  // blob 以引用方式结构化克隆给 Worker,字节拷贝与 zip 压缩都在 Worker 线程完成
+  const data = await runArchiveWorker({
+    localStorage: readLocalStorage(),
+    resultImages,
+    canvases,
+  });
+  return new Blob([data], {type: "application/zip"});
+}
 
-  const canvasIndex: Array<{id: string; documentPath: string}> = [];
-  for (const document of canvases) {
-    const documentPath = `canvases/${encodeURIComponent(document.id)}.json`;
-    const snapshot = await serializeCanvasSnapshot(document.snapshot, files, document.id);
-    files[documentPath] = strToU8(JSON.stringify({...document, snapshot}));
-    canvasIndex.push({id: document.id, documentPath});
-  }
-  files["canvases/index.json"] = strToU8(JSON.stringify(canvasIndex));
-  const manifest: BackupManifest = {
-    app: "gugle-ai",
-    formatVersion: BACKUP_FORMAT_VERSION,
-    createdAt: Date.now(),
-    resultImageCount: resultImages.length,
-    canvasCount: canvases.length,
-  };
-  files["manifest.json"] = strToU8(JSON.stringify(manifest));
-  return new Blob([await zipArchive(files)], {type: "application/zip"});
+function runArchiveWorker(request: ArchiveCreateRequest): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL("./archive-worker.ts", import.meta.url), {type: "module"});
+    const settle = (action: () => void) => {
+      worker.terminate();
+      action();
+    };
+    worker.onmessage = (event: MessageEvent<ArchiveCreateResponse>) => {
+      const message = event.data;
+      settle(() => (message.ok ? resolve(message.data) : reject(new Error(message.error))));
+    };
+    worker.onerror = (event) => {
+      settle(() => reject(new Error(event.message || "备份归档 Worker 执行失败")));
+    };
+    worker.postMessage(request);
+  });
 }
 
 export async function readBackupArchive(blob: Blob): Promise<BackupContents> {
@@ -148,12 +137,32 @@ export async function listBackups(): Promise<BackupMetadata[]> {
   const database = await openBackupDatabase();
   const transaction = database.transaction(BACKUP_STORE_NAME, "readonly");
   const completed = waitForTransaction(transaction);
-  const request = transaction.objectStore(BACKUP_STORE_NAME).getAll();
+  // 用游标逐条提取元数据,避免 getAll 一次性物化全部归档记录(含 blob 句柄)
+  const items: BackupMetadata[] = await new Promise((resolve, reject) => {
+    const result: BackupMetadata[] = [];
+    const request = transaction.objectStore(BACKUP_STORE_NAME).openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        resolve(result);
+        return;
+      }
+      const value = cursor.value as Partial<StoredBackup> | null;
+      if (isBackupMetadata(value)) {
+        result.push({
+          id: value.id,
+          name: value.name,
+          kind: value.kind,
+          createdAt: value.createdAt,
+          size: value.size,
+        });
+      }
+      cursor.continue();
+    };
+    request.onerror = () => reject(request.error ?? new Error("读取备份列表失败"));
+  });
   await completed;
-  return (request.result as StoredBackup[])
-      .filter((item) => isStoredBackup(item))
-      .map(({id, name, kind, createdAt, size}) => ({id, name, kind, createdAt, size}))
-      .sort((left, right) => right.createdAt - left.createdAt);
+  return items.sort((left, right) => right.createdAt - left.createdAt);
 }
 
 export async function getBackup(id: string): Promise<StoredBackup | null> {
@@ -231,39 +240,6 @@ function readLocalStorage(): Record<string, string> {
   return values;
 }
 
-async function serializeCanvasSnapshot(
-    snapshot: CanvasSnapshot,
-    files: Record<string, Uint8Array>,
-    canvasId: string
-): Promise<CanvasSnapshot> {
-  const nodes: CanvasNodeSnapshot[] = [];
-  for (const node of snapshot.nodes) {
-    nodes.push({
-      ...node,
-      data: {
-        ...node.data,
-        references: await serializeAssets(node.data.references, files, canvasId),
-        outputs: await serializeAssets(node.data.outputs, files, canvasId),
-      },
-    });
-  }
-  return {...snapshot, nodes};
-}
-
-async function serializeAssets(
-    assets: CanvasImageAssetSnapshot[],
-    files: Record<string, Uint8Array>,
-    canvasId: string
-): Promise<Array<CanvasImageAssetSnapshot & {blobPath: string}>> {
-  const result: Array<CanvasImageAssetSnapshot & {blobPath: string}> = [];
-  for (const asset of assets) {
-    const blobPath = `canvases/${encodeURIComponent(canvasId)}/assets/${encodeURIComponent(asset.id)}.bin`;
-    files[blobPath] = new Uint8Array(await asset.blob.arrayBuffer());
-    result.push({...asset, blob: undefined as never, blobPath});
-  }
-  return result;
-}
-
 async function restoreCanvasSnapshot(
     snapshot: CanvasSnapshot,
     archive: Record<string, Uint8Array>,
@@ -328,18 +304,6 @@ function validateBackupContents(contents: BackupContents): void {
   }
 }
 
-function zipArchive(files: Record<string, Uint8Array>): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    zip(files, {level: 6}, (error, data) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(data);
-    });
-  });
-}
-
 function unzipArchive(data: Uint8Array): Promise<Record<string, Uint8Array>> {
   return new Promise((resolve, reject) => {
     unzip(data, (error, archive) => {
@@ -357,6 +321,16 @@ function formatBackupTimestamp(timestamp: number): string {
   const pad = (value: number, length = 2) => String(value).padStart(length, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
       + `-${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}-${pad(date.getMilliseconds(), 3)}`;
+}
+
+function isBackupMetadata(value: unknown): value is BackupMetadata {
+  if (!value || typeof value !== "object") return false;
+  const backup = value as Partial<BackupMetadata>;
+  return typeof backup.id === "string"
+      && typeof backup.name === "string"
+      && (backup.kind === "manual" || backup.kind === "automatic")
+      && Number.isFinite(backup.createdAt)
+      && Number.isFinite(backup.size);
 }
 
 function isStoredBackup(value: unknown): value is StoredBackup {
