@@ -42,7 +42,7 @@ interface CanvasWorkspaceOptions {
   resolvePromptSystemPrompt(modelName: string): Promise<string>;
   error: Ref<string>;
   copyResultPrompt(image: ResultImage): Promise<void>;
-  copyResultImage(image: ResultImage): Promise<void>;
+  copyResultImage(image: ResultImage, staticFrame?: boolean): Promise<void>;
   saveImage(image: ResultImage): Promise<void>;
 }
 
@@ -434,7 +434,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
         : null;
     if (!node || !asset) return;
     const menuWidth = 176;
-    const menuHeight = 122;
+    const menuHeight = asset.mime === "image/gif" ? 162 : 122;
     const padding = 8;
     canvasImageContextMenu.value = {
       image: {
@@ -459,9 +459,9 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
     await options.copyResultPrompt(image);
   }
 
-  async function copyCanvasImage(image: ResultImage) {
+  async function copyCanvasImage(image: ResultImage, staticFrame = false) {
     closeCanvasImageContextMenu();
-    await options.copyResultImage(image);
+    await options.copyResultImage(image, staticFrame);
   }
 
   async function saveCanvasImage(image: ResultImage) {
@@ -529,6 +529,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
     const connection = connectionForCanvasNode(node, true);
     const base = connection.baseUrl;
     const requestSize = resolveCanvasNodeSize(node.data);
+    const outputOptions = options.generationSettings.imageOutputOptions();
     const useChat = options.generationSettings.apiMode.value === "chat"
         || (options.generationSettings.apiMode.value === "auto" && references.length > 1);
     if (useChat) {
@@ -546,6 +547,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
               messages: [{role: "user", content}],
               n: amount,
               ...(requestSize ? {size: requestSize} : {}),
+              ...outputOptions,
             }),
           },
           taskId,
@@ -579,6 +581,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
       form.append("prompt", prompt);
       form.append("n", String(amount));
       if (requestSize) form.append("size", requestSize);
+      for (const [key, value] of Object.entries(outputOptions)) form.append(key, String(value));
       for (const asset of references) {
         form.append("image[]", new File([asset.blob], asset.name, {type: asset.mime}), asset.name);
       }
@@ -599,6 +602,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
               prompt,
               n: amount,
               ...(requestSize ? {size: requestSize} : {}),
+              ...outputOptions,
             }),
           },
           taskId,

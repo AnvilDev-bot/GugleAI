@@ -1,6 +1,9 @@
+import {copyImageBlob} from "../../services/clipboard";
+import {Message} from "@arco-design/web-vue";
 import {onMounted, onUnmounted, ref, type Ref} from "vue";
 import {
   createResultId,
+  imageExtension,
   normalizeImageMime,
   type ResultContextMenuState,
   type ResultImage,
@@ -125,7 +128,7 @@ export function useResultHistory(options: ResultHistoryOptions) {
 
   function openResultContextMenu(event: MouseEvent, image: ResultImage) {
     const menuWidth = 176;
-    const menuHeight = 202;
+    const menuHeight = image.mime === "image/gif" ? 242 : 202;
     const padding = 8;
     resultContextMenu.value = {
       image,
@@ -170,25 +173,31 @@ export function useResultHistory(options: ResultHistoryOptions) {
     options.log("INFO", "已复制预览图片的提示词");
   }
 
-  async function copyResultImage(image: ResultImage) {
+  async function copyResultImage(image: ResultImage, staticFrame = false) {
     closeResultContextMenu();
     try {
-      if (typeof ClipboardItem === "undefined" || typeof navigator.clipboard?.write !== "function") {
-        throw new Error("当前系统 WebView 不支持复制图片");
-      }
-      const pngBlob = await convertImageBlobToPng(image.blob);
-      await navigator.clipboard.write([new ClipboardItem({"image/png": pngBlob})]);
-      showPreviewNotice("图片已复制到剪贴板");
-      options.log("INFO", "已复制预览图片到剪贴板");
+      // Start the clipboard write before any await to retain the click's user activation.
+      const result = await copyImageBlob(image.blob, staticFrame);
+      const message = result === "web-gif"
+          ? "GIF 原始数据已复制，仅兼容应用可粘贴动画；如无法粘贴，请保存 GIF 文件"
+          : result === "gif" ? "GIF 已复制，动画能否粘贴取决于目标应用"
+          : staticFrame ? "静态帧已复制（不含动画）" : "图片已复制到剪贴板";
+      options.error.value = "";
+      showPreviewNotice(message);
+      Message.success({content: message, duration: result === "web-gif" ? 6000 : 3000});
+      options.log("INFO", `复制图片完成: 格式=${result}`);
     } catch (reason) {
-      options.error.value = `复制图片失败: ${options.errorMessage(reason)}`;
+      const fallback = image.mime === "image/gif" && !staticFrame
+          ? "；可保存 GIF 文件保留动画，或选择“复制静态帧”" : "";
+      options.error.value = `复制图片失败: ${options.errorMessage(reason)}${fallback}`;
+      Message.error({content: options.error.value, duration: 6000});
       options.log("ERROR", `复制预览图片到剪贴板失败: ${options.formatErrorDetails(reason)}`);
     }
   }
 
   function setResultAsReference(image: ResultImage) {
     closeResultContextMenu();
-    const extension = image.mime.includes("jpeg") ? "jpg" : image.mime.includes("webp") ? "webp" : "png";
+    const extension = imageExtension(image.mime);
     try {
       options.addReference(new File([image.blob], `generated-${image.createdAt}.${extension}`, {
         type: image.mime,
@@ -211,6 +220,11 @@ export function useResultHistory(options: ResultHistoryOptions) {
     await deleteResultImage(image);
   }
 
+  function closeOnOutsideScroll(event: Event) {
+    if (event.target instanceof Element && event.target.closest(".result-context-menu")) return;
+    closeResultContextMenu();
+  }
+
   function closeOnEscape(event: KeyboardEvent) {
     if (event.key !== "Escape") return;
     closeResultContextMenu();
@@ -220,7 +234,7 @@ export function useResultHistory(options: ResultHistoryOptions) {
   onMounted(() => {
     window.addEventListener("blur", closeResultContextMenu);
     window.addEventListener("resize", closeResultContextMenu);
-    window.addEventListener("scroll", closeResultContextMenu, true);
+    window.addEventListener("scroll", closeOnOutsideScroll, true);
     document.addEventListener("keydown", closeOnEscape);
   });
 
@@ -229,7 +243,7 @@ export function useResultHistory(options: ResultHistoryOptions) {
     if (previewNoticeTimer !== null) window.clearTimeout(previewNoticeTimer);
     window.removeEventListener("blur", closeResultContextMenu);
     window.removeEventListener("resize", closeResultContextMenu);
-    window.removeEventListener("scroll", closeResultContextMenu, true);
+    window.removeEventListener("scroll", closeOnOutsideScroll, true);
     document.removeEventListener("keydown", closeOnEscape);
   });
 
@@ -273,26 +287,5 @@ export async function copyText(value: string): Promise<boolean> {
     } finally {
       textarea.remove();
     }
-  }
-}
-
-async function convertImageBlobToPng(blob: Blob): Promise<Blob> {
-  if (blob.type === "image/png") return blob;
-  const bitmap = await createImageBitmap(blob);
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("无法创建图片转换画布");
-    context.drawImage(bitmap, 0, 0);
-    return await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-          (pngBlob) => pngBlob ? resolve(pngBlob) : reject(new Error("无法将图片转换为 PNG")),
-          "image/png"
-      );
-    });
-  } finally {
-    bitmap.close();
   }
 }

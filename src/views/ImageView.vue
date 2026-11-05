@@ -42,6 +42,7 @@ onUnmounted(() => document.removeEventListener("pointerdown", closeRetryPicker))
                 @contextmenu.prevent="app.openResultContextMenu($event, img)"
             />
             <div class="result-actions">
+              <a-button size="mini" @click="app.copyResultImage(img)">{{ img.mime === 'image/gif' ? '复制 GIF' : '复制' }}</a-button>
               <a-button size="mini" @click="app.saveImage(img)">保存</a-button>
               <a-button size="mini" status="danger" class="delete-result" @click="app.deleteResultImage(img)">删除</a-button>
             </div>
@@ -112,6 +113,23 @@ onUnmounted(() => document.removeEventListener("pointerdown", closeRetryPicker))
             <a-option value="chat">Chat 接口</a-option>
           </a-select>
         </div>
+        <div class="field">
+          <span class="field-label">输出格式</span>
+          <a-select v-model="app.outputFormat" aria-label="输出格式">
+            <a-option value="auto">默认（静态图片）</a-option>
+            <a-option value="gif">GIF 动图</a-option>
+          </a-select>
+        </div>
+        <template v-if="app.outputFormat === 'gif'">
+          <label>
+            GIF 帧数（2–64）
+            <a-input-number v-model="app.frameCount" :min="2" :max="64" :step="1" :precision="0" aria-label="GIF 帧数"/>
+          </label>
+          <label>
+            每帧时长（20–2000 毫秒）
+            <a-input-number v-model="app.frameDurationMs" :min="20" :max="2000" :step="1" :precision="0" aria-label="GIF 每帧时长（毫秒）"/>
+          </label>
+        </template>
         <a-checkbox v-model="app.retryEnabled" class="checkbox-row image-retry-toggle">自动重试</a-checkbox>
         <div class="field">
           <label for="image-retry-status-code-input">重试错误码</label>

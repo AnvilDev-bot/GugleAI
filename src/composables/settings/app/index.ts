@@ -51,6 +51,9 @@ export function useAppSettings(options: AppSettingsOptions) {
         options.generation.customWidth,
         options.generation.customHeight,
         options.generation.count,
+        options.generation.outputFormat,
+        options.generation.frameCount,
+        options.generation.frameDurationMs,
         options.providers.textModel,
         options.providers.textModelOptions,
         options.providers.imageModelSelection,
@@ -135,6 +138,11 @@ export function useAppSettings(options: AppSettingsOptions) {
           && settings.customHeight > 0 ? settings.customHeight : 1024;
       options.generation.count.value = Number.isInteger(settings.count)
           && settings.count >= 1 && settings.count <= 10 ? settings.count : 1;
+      options.generation.outputFormat.value = settings.outputFormat === "gif" ? "gif" : "auto";
+      options.generation.frameCount.value = Number.isInteger(settings.frameCount)
+          && settings.frameCount >= 2 && settings.frameCount <= 64 ? settings.frameCount : 9;
+      options.generation.frameDurationMs.value = Number.isInteger(settings.frameDurationMs)
+          && settings.frameDurationMs >= 20 && settings.frameDurationMs <= 2000 ? settings.frameDurationMs : 200;
       options.providers.textModel.value = typeof settings.textModel === "string"
           && settings.textModel.trim() ? settings.textModel.trim() : options.providers.textModel.value;
       options.providers.textModelOptions.value = normalizeTextModelOptions(settings.textModelOptions);
@@ -188,6 +196,9 @@ export function useAppSettings(options: AppSettingsOptions) {
       customWidth: generation.customWidth.value,
       customHeight: generation.customHeight.value,
       count: generation.count.value,
+      outputFormat: generation.outputFormat.value,
+      frameCount: generation.frameCount.value,
+      frameDurationMs: generation.frameDurationMs.value,
       textModel: providers.textModel.value,
       textModelOptions: providers.textModelOptions.value,
       imageModelSelection: providers.imageModelSelection.value,

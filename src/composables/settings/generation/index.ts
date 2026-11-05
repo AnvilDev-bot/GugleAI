@@ -13,6 +13,21 @@ export function useGenerationSettings() {
   const customWidth = ref(1024);
   const customHeight = ref(1024);
   const count = ref(1);
+  const outputFormat = ref<"auto" | "gif">("auto");
+  const frameCount = ref(9);
+  const frameDurationMs = ref(200);
+
+  function imageOutputOptions(): Record<string, string | number> {
+    if (outputFormat.value === "auto") return {};
+    if (outputFormat.value !== "gif") throw new Error("不支持的输出格式");
+    if (!Number.isInteger(frameCount.value) || frameCount.value < 2 || frameCount.value > 64) {
+      throw new Error("GIF 帧数必须是 2 到 64 之间的整数");
+    }
+    if (!Number.isInteger(frameDurationMs.value) || frameDurationMs.value < 20 || frameDurationMs.value > 2000) {
+      throw new Error("GIF 每帧时长必须是 20 到 2000 之间的整数（毫秒）");
+    }
+    return {output_format: "gif", frame_count: frameCount.value, frame_duration_ms: frameDurationMs.value};
+  }
 
   const retryStatusCodeInputValue = computed(() => {
     const value = retryStatusCodeInput.value.trim();
@@ -94,6 +109,10 @@ export function useGenerationSettings() {
     customWidth,
     customHeight,
     count,
+    outputFormat,
+    frameCount,
+    frameDurationMs,
+    imageOutputOptions,
     retryStatusCodeInputValue,
     filteredRetryStatusCodeOptions,
     showRetryStatusCodeInputAction,

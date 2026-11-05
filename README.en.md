@@ -62,6 +62,15 @@ image and chat APIs, including compatible third-party relay services.
   as an image or prompt, reused as a reference, saved, deleted, or cleared.
 - Result parsing supports `b64_json`, absolute or relative image URLs, image URLs in Chat messages, and embedded base64
   data.
+- For any image model, Advanced Settings can switch from default still images to
+  GIF (`output_format: "gif"`). `frame_count` accepts integers from 2–64 (default 9); `frame_duration_ms` accepts
+  integers from 20–2000 milliseconds (default 200). Settings survive restarts and also apply to Canvas generation
+  nodes. Images, Edits, and Chat requests include these parameters when GIF is enabled. Otherwise,
+  `output_format`, `frame_count`, and `frame_duration_ms` are omitted entirely. Upstream services determine GIF support.
+  Preview, history, and saving preserve animation. The copy button and app context menus copy original GIF bytes,
+  using the standard GIF clipboard type when supported, or Chromium web custom formats for compatible receiving apps.
+  Unsupported environments show an error instead of silently flattening the animation. Choose “Copy static frame”
+  explicitly for PNG, or save the GIF file to preserve animation. Animated paste depends on the receiving app.
 - Automatic retries are disabled by default and apply only to generation requests. The default status code is `[504]`
   with up to 5 retries; the Advanced Settings page lets you select or add status codes from 100–599.
 
@@ -118,6 +127,9 @@ files.
 ```bash
 # Install dependencies
 pnpm install
+
+# Run GIF configuration and request regression tests
+pnpm test
 
 # Start the Tauri desktop development app
 pnpm tauri dev
