@@ -7,8 +7,6 @@ on:
       - "src/**"
       - "src-tauri/**"
       - "scripts/**"
-      - "CHANGES.md"
-      - "CHANGES.en.md"
       - "public/**"
       - "index.html"
       - "package.json"
@@ -32,30 +30,58 @@ jobs:
     outputs:
       release_id: ${{ steps.info.outputs.release_id }}
       tag: ${{ steps.info.outputs.tag }}
+      previous_tag: ${{ steps.notes.outputs.previous_tag }}
+      target_sha: ${{ steps.notes.outputs.target_sha }}
+      previous_sha: ${{ steps.notes.outputs.previous_sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare commit-based notes
+        id: notes
+        env:
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "release" ]; then
+            TAG="$RELEASE_TAG"
+          else
+            VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+            TAG="${VERSION}+build.${RUN_NUMBER}"
+          fi
+          export TAG
+          node scripts/release-notes.mjs
 
       - name: Resolve release
         id: info
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_ID: ${{ github.event.release.id }}
+          TAG: ${{ steps.notes.outputs.tag }}
+          TARGET_SHA: ${{ steps.notes.outputs.target_sha }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
-            echo "release_id=${{ github.event.release.id }}" >> "$GITHUB_OUTPUT"
-          else
-            VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
-            TAG="${VERSION}+build.${{ github.run_number }}"
-            RELEASE_ID=$(gh api "repos/${{ github.repository }}/releases" \
+          if [ "$EVENT_NAME" != "release" ]; then
+            # Reuse only this build's release on reruns; do not create a duplicate.
+            gh api --paginate --slurp "repos/$REPO/releases?per_page=100" > releases.json
+            RELEASE_ID=$(node -e "const pages = require('./releases.json'); const release = pages.flat().find(r => r.tag_name === process.env.TAG); if (release) process.stdout.write(String(release.id));")
+          fi
+          if [ -z "$RELEASE_ID" ]; then
+            RELEASE_ID=$(gh api "repos/$REPO/releases" \
               -f tag_name="$TAG" \
-              -f target_commitish="${{ github.sha }}" \
+              -f target_commitish="$TARGET_SHA" \
               -f name="$TAG" \
               -F prerelease=true \
-              -F generate_release_notes=true \
+              -F body=@body.md \
               --jq .id)
-            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-            echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
           fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare
@@ -258,7 +284,7 @@ jobs:
           APK: ${{ steps.apk.outputs.path }}
         run: gh release upload "$TAG" "$APK" --clobber
 
-  # 所有平台构建完成后,从中英文变更日志生成 release notes 和下载表格
+  # 所有平台构建完成后,使用 prepare 固定的提交范围生成更新内容和下载表格
   update-release-notes:
     needs: [prepare, build, android]
     if: ${{ !cancelled() && needs.prepare.result == 'success' }}
@@ -274,73 +300,11 @@ jobs:
           RELEASE_ID: ${{ needs.prepare.outputs.release_id }}
           REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare.outputs.tag }}
+          PREVIOUS_TAG: ${{ needs.prepare.outputs.previous_tag }}
+          PREVIOUS_SHA: ${{ needs.prepare.outputs.previous_sha }}
+          TARGET_SHA: ${{ needs.prepare.outputs.target_sha }}
         run: |
           gh api "repos/$REPO/releases/$RELEASE_ID" > release.json
           git fetch --force --tags
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
-          export PREVIOUS_TAG
-          node <<'EOF'
-          const fs = require("fs");
-          const rel = JSON.parse(fs.readFileSync("release.json", "utf8"));
-          const tag = process.env.TAG;
-          const version = tag.replace(/^v/, "").replace(/\+build\.\d+$/, "");
-
-          function extractVersionSection(file, targetVersion) {
-            const lines = fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n").split("\n");
-            const heading = `## [${targetVersion}]`;
-            const start = lines.findIndex((line) => line.startsWith(heading));
-            if (start === -1) {
-              throw new Error(`${file} does not contain a ${heading} section`);
-            }
-            const end = lines.findIndex((line, index) => index > start && line.startsWith("## ["));
-            return lines.slice(start, end === -1 ? lines.length : end).join("\n").trim();
-          }
-
-          const englishNotes = extractVersionSection("CHANGES.en.md", version);
-          const chineseNotes = extractVersionSection("CHANGES.md", version);
-
-          const rules = [
-            [/_x64-setup\.exe$/,      "Windows", "x86_64",                "NSIS 安装包"],
-            [/_x86-setup\.exe$/,      "Windows", "x86 (32位)",            "NSIS 安装包"],
-            [/_arm64-setup\.exe$/,    "Windows", "arm64",                 "NSIS 安装包"],
-            [/_x64[^/]*\.msi$/,       "Windows", "x86_64",                "MSI 安装包"],
-            [/_x86[^/]*\.msi$/,       "Windows", "x86 (32位)",            "MSI 安装包"],
-            [/-android-arm64\.apk$/,  "Android", "arm64",                 "APK"],
-            [/_amd64\.deb$/,          "Linux",   "x86_64",                "deb"],
-            [/_arm64\.deb$/,          "Linux",   "arm64",                 "deb"],
-            [/\.x86_64\.rpm$/,        "Linux",   "x86_64",                "rpm"],
-            [/\.aarch64\.rpm$/,       "Linux",   "arm64",                 "rpm"],
-            [/_amd64\.AppImage$/,     "Linux",   "x86_64",                "AppImage"],
-            [/_aarch64\.AppImage$/,   "Linux",   "arm64",                 "AppImage"],
-            [/_x64\.dmg$/,            "macOS",   "Intel (x86_64)",        "dmg"],
-            [/_aarch64\.dmg$/,        "macOS",   "Apple Silicon (arm64)", "dmg"],
-            [/x64\.app\.tar\.gz$/,    "macOS",   "Intel (x86_64)",        "app 压缩包"],
-            [/aarch64\.app\.tar\.gz$/,"macOS",   "Apple Silicon (arm64)", "app 压缩包"],
-          ];
-
-          const rows = rel.assets
-            .map((a) => {
-              const i = rules.findIndex(([re]) => re.test(a.name));
-              const [, os, arch, kind] = i === -1 ? [null, "其他", "-", "-"] : rules[i];
-              return { order: i === -1 ? rules.length : i, os, arch, kind, a };
-            })
-            .sort((x, y) => x.order - y.order)
-            .map((r) => `| ${r.os} | ${r.arch} | ${r.kind} | [${r.a.name}](${r.a.browser_download_url}) |`);
-
-          const table = [
-            "## 下载", "",
-            "| 平台 | 架构 | 格式 | 下载 |",
-            "| --- | --- | --- | --- |",
-            ...rows,
-          ].join("\n");
-
-          const previousTag = process.env.PREVIOUS_TAG;
-          const changelog = previousTag
-            ? `**Full Changelog**: https://github.com/${process.env.REPO}/compare/${previousTag}...${tag}`
-            : "";
-          const body = [englishNotes, chineseNotes, changelog, table]
-            .filter(Boolean)
-            .join("\n\n") + "\n";
-          fs.writeFileSync("body.md", body);
-          EOF
+          node scripts/release-notes.mjs release.json
           gh api -X PATCH "repos/$REPO/releases/$RELEASE_ID" -F body=@body.md

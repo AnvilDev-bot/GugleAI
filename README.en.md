@@ -205,9 +205,12 @@ and all network requests go through `src/composables/fetch/index.ts`.
 ## Download
 
 Download installers from the [Releases](../../releases) page. Release builds support Windows (x86, x86_64, arm64),
-Linux (x86_64, arm64), macOS (Intel, Apple Silicon), and Android (arm64 APK). Release notes contain the current base
-version sections from `CHANGES.en.md` and `CHANGES.md`, a full comparison link between adjacent builds, and the
-platform download table.
+Linux (x86_64, arm64), macOS (Intel, Apple Silicon), and Android (arm64 APK). Release notes automatically collect
+Git commit subjects in their original language, excluding merge commits, under bilingual headings with a full
+comparison link and platform download table. There are no manually maintained changelog files.
+`<version>+build.N` builds compare against the highest earlier build or stable tag reachable from the target commit;
+a stable tag ranks after builds of the same base version and is not their baseline. Stable releases compare only against an earlier stable version. When no baseline exists, all history through the
+target commit is listed. Reruns use the fixed target commit and do not include changes from future versions.
 
 ## License
 

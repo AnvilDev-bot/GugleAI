@@ -165,8 +165,10 @@ src-tauri/
 ## 下载
 
 前往 [Releases](../../releases) 下载对应平台的安装包。发布构建支持 Windows（x86、x86_64、arm64）、Linux（x86_64、arm64）、
-macOS（Intel、Apple Silicon）和 Android（arm64 APK）。Release notes 会依次包含 `CHANGES.en.md` 与 `CHANGES.md`
-中当前基础版本的章节、相邻构建的完整变更比较链接以及按平台分类的下载表。
+macOS（Intel、Apple Silicon）和 Android（arm64 APK）。Release notes 自动收集 Git commit 标题（保留原文，跳过合并提交），
+使用中英文标题展示更新内容、完整变更链接和按平台分类的下载表，不再手工维护变更日志文件。
+`<version>+build.N` 构建以目标提交祖先中版本较早的最近构建或正式 tag 为基线（同基础版本的正式 tag 排在构建之后，不作为构建的基线）；正式版本只比较更早的正式版本。
+首个版本没有可用基线时列出截至目标提交的全部历史；重跑使用固定的目标提交，不混入未来版本的改动。
 
 ## 许可证
 
