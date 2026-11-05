@@ -4,6 +4,9 @@ Release headings use the base semantic version; `+build.N` is a build identifier
 
 ## [1.1.1] - 2026-07-18
 
+- Added GIF generation options for any image model, with configurable frame count and duration across Images, Edits, Chat, and Infinite Canvas, plus persisted settings.
+- GIF previews, history, and saved files preserve animation; clipboard actions prefer original GIF data, explain unsupported formats, and offer a separate static-frame copy option.
+- Added PR checks for frontend regression tests, type checking, builds, and Linux Rust targets; fixed Android release setup failing when it tried to install the removed `tools` SDK package.
 - Fixed insufficient top status-bar spacing on Android and narrow screens.
 - Fixed scrolling in the mobile Infinite Canvas library.
 - Manually added Infinite Canvas nodes are now placed at the center of the current viewport.
