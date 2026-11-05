@@ -77,10 +77,6 @@ export const DEFAULT_CONNECTION_MODELS = [...new Set([
 ])];
 export const DEFAULT_RETRY_STATUS_CODE_OPTIONS = [408, 409, 429, 500, 502, 503, 504, 524];
 
-export function supportsGifOutput(model: string): boolean {
-  return model === "gpt-image-2.6-sunburst" || model === "gpt-image-2.6-flare";
-}
-
 export function imageExtension(mime: string): string {
   if (mime.includes("gif")) return "gif";
   if (mime.includes("jpeg")) return "jpg";

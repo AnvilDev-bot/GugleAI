@@ -112,14 +112,14 @@ onUnmounted(() => document.removeEventListener("pointerdown", closeRetryPicker))
             <a-option value="chat">Chat 接口</a-option>
           </a-select>
         </div>
-        <div v-if="app.imageSupportsGif" class="field">
+        <div class="field">
           <span class="field-label">输出格式</span>
           <a-select v-model="app.outputFormat" aria-label="输出格式">
             <a-option value="auto">默认（静态图片）</a-option>
             <a-option value="gif">GIF 动图</a-option>
           </a-select>
         </div>
-        <template v-if="app.imageSupportsGif && app.outputFormat === 'gif'">
+        <template v-if="app.outputFormat === 'gif'">
           <label>
             GIF 帧数（2–64）
             <a-input-number v-model="app.frameCount" :min="2" :max="64" :step="1" :precision="0" aria-label="GIF 帧数"/>

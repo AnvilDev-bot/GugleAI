@@ -62,11 +62,11 @@ image and chat APIs, including compatible third-party relay services.
   as an image or prompt, reused as a reference, saved, deleted, or cleared.
 - Result parsing supports `b64_json`, absolute or relative image URLs, image URLs in Chat messages, and embedded base64
   data.
-- For `gpt-image-2.6-sunburst` and `gpt-image-2.6-flare`, Advanced Settings can switch from default still images to
+- For any image model, Advanced Settings can switch from default still images to
   GIF (`output_format: "gif"`). `frame_count` accepts integers from 2–64 (default 9); `frame_duration_ms` accepts
   integers from 20–2000 milliseconds (default 200). Settings survive restarts and also apply to Canvas generation
-  nodes using these models. Images, Edits, and Chat requests include these parameters; other models and default output
-  mode do not send GIF parameters. Preview, history, and saving preserve animation; copying an image to the clipboard
+  nodes. Images, Edits, and Chat requests include these parameters when GIF is enabled. Otherwise,
+  `output_format`, `frame_count`, and `frame_duration_ms` are omitted entirely. Upstream services determine GIF support. Preview, history, and saving preserve animation; copying an image to the clipboard
   still produces a static PNG.
 - Automatic retries are disabled by default and apply only to generation requests. The default status code is `[504]`
   with up to 5 retries; the Advanced Settings page lets you select or add status codes from 100–599.

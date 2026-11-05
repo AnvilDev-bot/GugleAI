@@ -529,7 +529,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
     const connection = connectionForCanvasNode(node, true);
     const base = connection.baseUrl;
     const requestSize = resolveCanvasNodeSize(node.data);
-    const outputOptions = options.generationSettings.imageOutputOptions(node.data.model);
+    const outputOptions = options.generationSettings.imageOutputOptions();
     const useChat = options.generationSettings.apiMode.value === "chat"
         || (options.generationSettings.apiMode.value === "auto" && references.length > 1);
     if (useChat) {

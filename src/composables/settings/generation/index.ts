@@ -1,5 +1,5 @@
 import {computed, ref} from "vue";
-import {DEFAULT_RETRY_STATUS_CODE_OPTIONS, supportsGifOutput, type RetryConfig} from "../../../domain/models";
+import {DEFAULT_RETRY_STATUS_CODE_OPTIONS, type RetryConfig} from "../../../domain/models";
 
 export function useGenerationSettings() {
   const apiMode = ref<"auto" | "images" | "chat">("auto");
@@ -17,8 +17,8 @@ export function useGenerationSettings() {
   const frameCount = ref(9);
   const frameDurationMs = ref(200);
 
-  function imageOutputOptions(model: string): Record<string, string | number> {
-    if (!supportsGifOutput(model) || outputFormat.value === "auto") return {};
+  function imageOutputOptions(): Record<string, string | number> {
+    if (outputFormat.value === "auto") return {};
     if (outputFormat.value !== "gif") throw new Error("不支持的输出格式");
     if (!Number.isInteger(frameCount.value) || frameCount.value < 2 || frameCount.value > 64) {
       throw new Error("GIF 帧数必须是 2 到 64 之间的整数");

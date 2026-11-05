@@ -5,7 +5,6 @@ import {OpenAIConnection} from "../../../api";
 import {
   base64ToBlob,
   imageExtension,
-  supportsGifOutput,
   normalizeImageMime,
   type RefImage,
   type ResolvedModel,
@@ -45,10 +44,6 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
   const dragOver = ref(false);
   let abortController: AbortController | null = null;
   let activeTaskId: number | null = null;
-
-  const imageSupportsGif = computed(() => supportsGifOutput(
-      options.resolveModelSelection(options.imageModelSelection.value)?.model.id ?? ""
-  ));
 
   const hintText = computed(() => {
     const referenceCount = refImages.value.length;
@@ -136,7 +131,7 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
     let outputOptions: Record<string, string | number>;
     try {
       requestSize = options.generationSettings.resolvedSize();
-      outputOptions = options.generationSettings.imageOutputOptions(selectedModel.model.id);
+      outputOptions = options.generationSettings.imageOutputOptions();
     } catch (reason) {
       error.value = options.errorMessage(reason);
       return;
@@ -404,7 +399,6 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
     error,
     dragOver,
     hintText,
-    imageSupportsGif,
     addFile,
     addImages,
     removeImage,
