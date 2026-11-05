@@ -42,7 +42,7 @@ interface CanvasWorkspaceOptions {
   resolvePromptSystemPrompt(modelName: string): Promise<string>;
   error: Ref<string>;
   copyResultPrompt(image: ResultImage): Promise<void>;
-  copyResultImage(image: ResultImage): Promise<void>;
+  copyResultImage(image: ResultImage, staticFrame?: boolean): Promise<void>;
   saveImage(image: ResultImage): Promise<void>;
 }
 
@@ -434,7 +434,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
         : null;
     if (!node || !asset) return;
     const menuWidth = 176;
-    const menuHeight = 122;
+    const menuHeight = asset.mime === "image/gif" ? 162 : 122;
     const padding = 8;
     canvasImageContextMenu.value = {
       image: {
@@ -459,9 +459,9 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
     await options.copyResultPrompt(image);
   }
 
-  async function copyCanvasImage(image: ResultImage) {
+  async function copyCanvasImage(image: ResultImage, staticFrame = false) {
     closeCanvasImageContextMenu();
-    await options.copyResultImage(image);
+    await options.copyResultImage(image, staticFrame);
   }
 
   async function saveCanvasImage(image: ResultImage) {

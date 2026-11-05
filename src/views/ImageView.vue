@@ -42,6 +42,7 @@ onUnmounted(() => document.removeEventListener("pointerdown", closeRetryPicker))
                 @contextmenu.prevent="app.openResultContextMenu($event, img)"
             />
             <div class="result-actions">
+              <a-button size="mini" @click="app.copyResultImage(img)">{{ img.mime === 'image/gif' ? '复制 GIF' : '复制' }}</a-button>
               <a-button size="mini" @click="app.saveImage(img)">保存</a-button>
               <a-button size="mini" status="danger" class="delete-result" @click="app.deleteResultImage(img)">删除</a-button>
             </div>

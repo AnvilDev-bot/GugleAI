@@ -17,6 +17,7 @@
 
 .result-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -42,12 +43,13 @@
 
 .result-context-menu {
   position: fixed;
-  z-index: 100;
+  z-index: 130;
   display: flex;
   width: 168px;
   max-width: calc(100vw - 16px);
   flex-direction: column;
-  overflow: hidden;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   border: 1px solid var(--color-border-3);
   border-radius: 6px;
   background: var(--color-bg-3);

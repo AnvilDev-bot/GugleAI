@@ -49,7 +49,8 @@ GugleAI 是一个基于 Tauri 2、Vue 3 和 TypeScript 的桌面与 Android AI �
 - 任意生图模型均可在高级配置中将输出格式从默认静态图片切换为 GIF（`output_format: "gif"`）。
   GIF 帧数 `frame_count` 为 2–64 的整数，默认 9；每帧时长 `frame_duration_ms` 为 20–2000 毫秒的整数，默认 200。
   设置会在重启后恢复，也适用于无尽画布的生成节点。开启 GIF 时，Images、Edits 和 Chat 请求均携带这些参数；
-  不开启 GIF 时，不发送 `output_format`、`frame_count`、`frame_duration_ms` 三个字段；开启后由上游服务决定是否支持。GIF 预览、历史和保存保留动图，复制图片到剪贴板仍为静态 PNG。
+  不开启 GIF 时，不发送 `output_format`、`frame_count`、`frame_duration_ms` 三个字段；开启后由上游服务决定是否支持。GIF 预览、历史和保存保留动图。复制按钮和应用右键菜单优先复制 GIF 原始数据；标准 GIF 剪贴板不可用时，尝试 Chromium 的 Web 自定义格式（仅兼容应用可读取）。
+  不支持时会明确提示，不会自动转成静态图片；可另选“复制静态帧”，或保存 GIF 文件保留动画。目标应用是否能粘贴动画取决于其格式支持。
 - 自动重试默认关闭，只用于生成请求；默认重试状态码为 `[504]`，默认最多重试 5 次，也可以在高级配置中选择或添加 100–599
   范围内的状态码。
 
