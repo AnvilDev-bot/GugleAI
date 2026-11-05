@@ -46,6 +46,10 @@ GugleAI 是一个基于 Tauri 2、Vue 3 和 TypeScript 的桌面与 Android AI �
 - 生成任务可以随时停止，同时取消当前请求、重试等待和结果下载。
 - 预览历史存储图片和提示词，重启后自动恢复；支持双击放大、复制图片或提示词、设为参考图、保存、删除和清空。
 - 结果解析兼容 `b64_json`、绝对或相对图片 URL、Chat 消息中的图片 URL 和内嵌 base64。
+- `gpt-image-2.6-sunburst` 和 `gpt-image-2.6-flare` 可在高级配置中将输出格式从默认静态图片切换为 GIF（`output_format: "gif"`）。
+  GIF 帧数 `frame_count` 为 2–64 的整数，默认 9；每帧时长 `frame_duration_ms` 为 20–2000 毫秒的整数，默认 200。
+  设置会在重启后恢复，也适用于无尽画布中这两个模型的生成节点。Images、Edits 和 Chat 请求均携带这些参数；
+  其他模型和默认输出模式不会发送 GIF 参数。GIF 预览、历史和保存保留动图，复制图片到剪贴板仍为静态 PNG。
 - 自动重试默认关闭，只用于生成请求；默认重试状态码为 `[504]`，默认最多重试 5 次，也可以在高级配置中选择或添加 100–599
   范围内的状态码。
 
@@ -90,6 +94,9 @@ GugleAI 是一个基于 Tauri 2、Vue 3 和 TypeScript 的桌面与 Android AI �
 ```bash
 # 安装依赖
 pnpm install
+
+# 运行 GIF 配置和请求回归测试
+pnpm test
 
 # 启动 Tauri 桌面开发模式
 pnpm tauri dev

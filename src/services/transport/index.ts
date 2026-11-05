@@ -1,7 +1,7 @@
 import type {ClientOptions} from "@tauri-apps/plugin-http";
 import {OpenAIConnection} from "../../api";
 import {describeRequestBody} from "../../composables/logger";
-import {normalizeImageMime, type RetryConfig} from "../../domain/models";
+import {imageMimeFromBytes, type RetryConfig} from "../../domain/models";
 
 type SystemFetch = (input: string, init?: RequestInit & ClientOptions) => Promise<Response>;
 type Log = (level: "INFO" | "ERROR", message: string) => void;
@@ -169,7 +169,7 @@ export function createGenerationTransport(options: GenerationTransportOptions) {
       if (response.ok) {
         const buffer = await response.arrayBuffer();
         throwIfAborted(signal);
-        const mime = normalizeImageMime(response.headers.get("content-type"));
+        const mime = imageMimeFromBytes(new Uint8Array(buffer), response.headers.get("content-type"));
         return new Blob([buffer], {type: mime});
       }
       lastStatus = response.status;

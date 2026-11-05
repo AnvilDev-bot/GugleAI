@@ -1,6 +1,7 @@
 import {onMounted, onUnmounted, ref, type Ref} from "vue";
 import {
   createResultId,
+  imageExtension,
   normalizeImageMime,
   type ResultContextMenuState,
   type ResultImage,
@@ -188,7 +189,7 @@ export function useResultHistory(options: ResultHistoryOptions) {
 
   function setResultAsReference(image: ResultImage) {
     closeResultContextMenu();
-    const extension = image.mime.includes("jpeg") ? "jpg" : image.mime.includes("webp") ? "webp" : "png";
+    const extension = imageExtension(image.mime);
     try {
       options.addReference(new File([image.blob], `generated-${image.createdAt}.${extension}`, {
         type: image.mime,

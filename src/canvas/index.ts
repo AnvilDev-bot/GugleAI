@@ -463,6 +463,7 @@ function normalizeMime(mime: string | null | undefined): string {
 }
 
 function extensionForMime(mime: string): string {
+  if (mime.includes("gif")) return "gif";
   if (mime.includes("jpeg")) return "jpg";
   if (mime.includes("webp")) return "webp";
   return "png";

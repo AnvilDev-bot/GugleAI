@@ -4,6 +4,8 @@ import {invoke} from "@tauri-apps/api/core";
 import {OpenAIConnection} from "../../../api";
 import {
   base64ToBlob,
+  imageExtension,
+  supportsGifOutput,
   normalizeImageMime,
   type RefImage,
   type ResolvedModel,
@@ -43,6 +45,10 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
   const dragOver = ref(false);
   let abortController: AbortController | null = null;
   let activeTaskId: number | null = null;
+
+  const imageSupportsGif = computed(() => supportsGifOutput(
+      options.resolveModelSelection(options.imageModelSelection.value)?.model.id ?? ""
+  ));
 
   const hintText = computed(() => {
     const referenceCount = refImages.value.length;
@@ -127,8 +133,10 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
       return;
     }
     let requestSize: string | null;
+    let outputOptions: Record<string, string | number>;
     try {
       requestSize = options.generationSettings.resolvedSize();
+      outputOptions = options.generationSettings.imageOutputOptions(selectedModel.model.id);
     } catch (reason) {
       error.value = options.errorMessage(reason);
       return;
@@ -166,7 +174,8 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
             requestCount,
             taskId,
             controller.signal,
-            generatedResultIds
+            generatedResultIds,
+            outputOptions
         );
       } else {
         await generateViaImages(
@@ -177,7 +186,8 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
             requestCount,
             taskId,
             controller.signal,
-            generatedResultIds
+            generatedResultIds,
+            outputOptions
         );
       }
       options.transport.throwIfAborted(controller.signal);
@@ -209,7 +219,8 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
       requestCount: number,
       taskId: number,
       signal: AbortSignal,
-      resultIds: Set<string>
+      resultIds: Set<string>,
+      outputOptions: Record<string, string | number>
   ) {
     options.transport.throwIfAborted(signal);
     let response: Response;
@@ -219,6 +230,7 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
       form.append("prompt", generationPrompt);
       form.append("n", String(requestCount));
       if (requestSize) form.append("size", requestSize);
+      for (const [key, value] of Object.entries(outputOptions)) form.append(key, String(value));
       for (const image of refImages.value) form.append("image[]", image.file, image.file.name);
       response = await options.transport.fetchGeneration(
           `${connection.baseUrl}/images/edits`,
@@ -237,6 +249,7 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
               prompt: generationPrompt,
               n: requestCount,
               ...(requestSize ? {size: requestSize} : {}),
+              ...outputOptions,
             }),
           },
           taskId,
@@ -248,9 +261,10 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
     for (const item of data.data ?? []) {
       options.transport.throwIfAborted(signal);
       if (item.b64_json) {
+        const blob = base64ToBlob(item.b64_json, "image/png");
         await options.addResultImage(
-            base64ToBlob(item.b64_json, "image/png"),
-            "image/png",
+            blob,
+            blob.type,
             generationPrompt,
             resultIds
         );
@@ -268,7 +282,8 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
       requestCount: number,
       taskId: number,
       signal: AbortSignal,
-      resultIds: Set<string>
+      resultIds: Set<string>,
+      outputOptions: Record<string, string | number>
   ) {
     const content: unknown[] = [{type: "text", text: generationPrompt}];
     for (const image of refImages.value) {
@@ -290,6 +305,7 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
             messages: [{role: "user", content}],
             n: requestCount,
             ...(requestSize ? {size: requestSize} : {}),
+            ...outputOptions,
           }),
         },
         taskId,
@@ -307,9 +323,10 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
       const text = typeof message.content === "string" ? message.content : "";
       for (const match of text.matchAll(/data:(image\/[\w.+-]+);base64,([A-Za-z0-9+/=]+)/g)) {
         options.transport.throwIfAborted(signal);
+        const blob = base64ToBlob(match[2], match[1]);
         await options.addResultImage(
-            base64ToBlob(match[2], match[1]),
-            match[1],
+            blob,
+            blob.type,
             generationPrompt,
             resultIds
         );
@@ -332,9 +349,10 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
     options.transport.throwIfAborted(signal);
     const dataUrl = url.match(/^data:(image\/[\w.+-]+);base64,([A-Za-z0-9+/=]+)$/);
     if (dataUrl) {
+      const blob = base64ToBlob(dataUrl[2], dataUrl[1]);
       await options.addResultImage(
-          base64ToBlob(dataUrl[2], dataUrl[1]),
-          dataUrl[1],
+          blob,
+          blob.type,
           generationPrompt,
           resultIds
       );
@@ -355,7 +373,7 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
   }
 
   async function saveImage(image: ResultImage) {
-    const extension = image.mime.includes("jpeg") ? "jpg" : image.mime.includes("webp") ? "webp" : "png";
+    const extension = imageExtension(image.mime);
     const path = await save({
       defaultPath: `generated-${Date.now()}.${extension}`,
       filters: [{name: "图片", extensions: [extension]}],
@@ -386,6 +404,7 @@ export function useImageWorkspace(options: ImageWorkspaceOptions) {
     error,
     dragOver,
     hintText,
+    imageSupportsGif,
     addFile,
     addImages,
     removeImage,

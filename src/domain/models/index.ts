@@ -58,6 +58,8 @@ export const DEFAULT_ENDPOINT = "https://api.openai.com/v1";
 export const DEFAULT_CONNECTION_ID = "default-openai";
 export const DEFAULT_MODEL_OPTIONS = [
   "gpt-image-2",
+  "gpt-image-2.6-sunburst",
+  "gpt-image-2.6-flare",
   "grok-imagine",
   "grok-imagine-edit",
   "grok-imagine-image",
@@ -74,6 +76,23 @@ export const DEFAULT_CONNECTION_MODELS = [...new Set([
   ...DEFAULT_TEXT_MODEL_OPTIONS,
 ])];
 export const DEFAULT_RETRY_STATUS_CODE_OPTIONS = [408, 409, 429, 500, 502, 503, 504, 524];
+
+export function supportsGifOutput(model: string): boolean {
+  return model === "gpt-image-2.6-sunburst" || model === "gpt-image-2.6-flare";
+}
+
+export function imageExtension(mime: string): string {
+  if (mime.includes("gif")) return "gif";
+  if (mime.includes("jpeg")) return "jpg";
+  if (mime.includes("webp")) return "webp";
+  return "png";
+}
+
+export function imageMimeFromBytes(bytes: Uint8Array, fallback?: string | null): string {
+  // Some relays omit Content-Type or return GIF bytes in b64_json without metadata.
+  const header = String.fromCharCode(...bytes.subarray(0, 6));
+  return header === "GIF87a" || header === "GIF89a" ? "image/gif" : normalizeImageMime(fallback);
+}
 
 export function createConnectionId(): string {
   return globalThis.crypto?.randomUUID?.()
@@ -231,5 +250,5 @@ export function base64ToBlob(base64: string, mime: string): Blob {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], {type: normalizeImageMime(mime)});
+  return new Blob([bytes], {type: imageMimeFromBytes(bytes, mime)});
 }

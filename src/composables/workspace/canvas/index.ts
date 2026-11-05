@@ -529,6 +529,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
     const connection = connectionForCanvasNode(node, true);
     const base = connection.baseUrl;
     const requestSize = resolveCanvasNodeSize(node.data);
+    const outputOptions = options.generationSettings.imageOutputOptions(node.data.model);
     const useChat = options.generationSettings.apiMode.value === "chat"
         || (options.generationSettings.apiMode.value === "auto" && references.length > 1);
     if (useChat) {
@@ -546,6 +547,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
               messages: [{role: "user", content}],
               n: amount,
               ...(requestSize ? {size: requestSize} : {}),
+              ...outputOptions,
             }),
           },
           taskId,
@@ -579,6 +581,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
       form.append("prompt", prompt);
       form.append("n", String(amount));
       if (requestSize) form.append("size", requestSize);
+      for (const [key, value] of Object.entries(outputOptions)) form.append(key, String(value));
       for (const asset of references) {
         form.append("image[]", new File([asset.blob], asset.name, {type: asset.mime}), asset.name);
       }
@@ -599,6 +602,7 @@ export function useCanvasWorkspace(options: CanvasWorkspaceOptions) {
               prompt,
               n: amount,
               ...(requestSize ? {size: requestSize} : {}),
+              ...outputOptions,
             }),
           },
           taskId,
